@@ -66,7 +66,7 @@ final class GeneratorOptions {
   private(set) var fileNaming = FileNaming.FullPath
   private(set) var extraModuleImports: [String] = []
   private(set) var gRPCModuleName = "GRPC"
-  private(set) var swiftProtobufModuleName = "SwiftProtobuf"
+  private(set) var swiftProtobufModuleName = "GRPCNetwork"
   private(set) var generateReflectionData = false
   private(set) var v2 = false
 
