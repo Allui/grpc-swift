@@ -29,7 +29,7 @@ extension Generator {
     let enumName = server ? self.serviceServerMetadata : self.serviceClientMetadata
 
     self.withIndentation("\(self.access) enum \(enumName)", braces: .curly) {
-      self.println("\(self.access) static let serviceDescriptor = GRPCServiceDescriptor(")
+      self.println("\(self.access) static let serviceDescriptor = (")
       self.withIndentation {
         self.println("name: \(quoted(self.service.name)),")
         self.println("fullName: \(quoted(self.servicePath)),")
@@ -49,12 +49,11 @@ extension Generator {
         for (offset, method) in self.service.methods.enumerated() {
           self.method = method
           self.println(
-            "\(self.access) static let \(self.methodFunctionName) = GRPCMethodDescriptor("
+            "\(self.access) static let \(self.methodFunctionName) = ("
           )
           self.withIndentation {
             self.println("name: \(quoted(self.method.name)),")
-            self.println("path: \(quoted(self.methodPath)),")
-            self.println("type: \(streamingType(self.method).asGRPCCallTypeCase)")
+            self.println("path: \(quoted(self.methodPath))")
           }
           self.println(")")
 

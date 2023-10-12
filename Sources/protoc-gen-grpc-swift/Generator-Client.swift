@@ -20,25 +20,11 @@ import SwiftProtobufPluginLibrary
 extension Generator {
   internal func printClient() {
     if self.options.generateClient {
-      self.println()
       self.printServiceClientProtocol()
       self.println()
       self.printClientProtocolExtension()
       self.println()
-      self.printClassBackedServiceClientImplementation()
-      self.println()
       self.printStructBackedServiceClientImplementation()
-      self.println()
-      self.printAsyncServiceClientProtocol()
-      self.println()
-      self.printAsyncClientProtocolExtension()
-      self.println()
-      self.printAsyncClientProtocolSafeWrappersExtension()
-      self.println()
-      self.printAsyncServiceClientImplementation()
-      self.println()
-      // Both implementations share definitions for interceptors and metadata.
-      self.printServiceClientInterceptorFactoryProtocol()
       self.println()
       self.printClientMetadata()
     }
@@ -120,10 +106,9 @@ extension Generator {
     self.println(
       "/// Usage: instantiate `\(self.clientClassName)`, then call methods of this protocol to make API calls."
     )
-    self.println("\(self.access) protocol \(self.clientProtocolName): GRPCClient {")
+    self.println("\(self.access) protocol \(self.clientProtocolName): GRPCCallDataFactory {")
     self.withIndentation {
       self.println("var serviceName: String { get }")
-      self.println("var interceptors: \(self.clientInterceptorProtocolName)? { get }")
 
       for method in service.methods {
         self.println()
@@ -158,114 +143,10 @@ extension Generator {
     self.println("}")
   }
 
-  private func printServiceClientInterceptorFactoryProtocol() {
-    self.println("\(self.access) protocol \(self.clientInterceptorProtocolName): Sendable {")
-    self.withIndentation {
-      // Method specific interceptors.
-      for method in service.methods {
-        self.println()
-        self.method = method
-        self.println(
-          "/// - Returns: Interceptors to use when invoking '\(self.methodFunctionName)'."
-        )
-        // Skip the access, we're defining a protocol.
-        self.printMethodInterceptorFactory(access: nil)
-      }
-    }
-    self.println("}")
-  }
-
-  private func printMethodInterceptorFactory(
-    access: String?,
-    bodyBuilder: (() -> Void)? = nil
-  ) {
-    self.printFunction(
-      name: self.methodInterceptorFactoryName,
-      arguments: [],
-      returnType: "[ClientInterceptor<\(self.methodInputName), \(self.methodOutputName)>]",
-      access: access,
-      bodyBuilder: bodyBuilder
-    )
-  }
-
-  private func printClassBackedServiceClientImplementation() {
-    self.println("@available(*, deprecated)")
-    self.println("extension \(clientClassName): @unchecked Sendable {}")
-    self.println()
-    self.println("@available(*, deprecated, renamed: \"\(clientStructName)\")")
-    println("\(access) final class \(clientClassName): \(clientProtocolName) {")
-    self.withIndentation {
-      println("private let lock = Lock()")
-      println("private var _defaultCallOptions: CallOptions")
-      println("private var _interceptors: \(clientInterceptorProtocolName)?")
-
-      println("\(access) let channel: GRPCChannel")
-      println("\(access) var defaultCallOptions: CallOptions {")
-      self.withIndentation {
-        println("get { self.lock.withLock { return self._defaultCallOptions } }")
-        println("set { self.lock.withLockVoid { self._defaultCallOptions = newValue } }")
-      }
-      self.println("}")
-      println("\(access) var interceptors: \(clientInterceptorProtocolName)? {")
-      self.withIndentation {
-        println("get { self.lock.withLock { return self._interceptors } }")
-        println("set { self.lock.withLockVoid { self._interceptors = newValue } }")
-      }
-      println("}")
-      println()
-      println("/// Creates a client for the \(servicePath) service.")
-      println("///")
-      self.printParameters()
-      println("///   - channel: `GRPCChannel` to the service host.")
-      println(
-        "///   - defaultCallOptions: Options to use for each service call if the user doesn't provide them."
-      )
-      println("///   - interceptors: A factory providing interceptors for each RPC.")
-      println("\(access) init(")
-      self.withIndentation {
-        println("channel: GRPCChannel,")
-        println("defaultCallOptions: CallOptions = CallOptions(),")
-        println("interceptors: \(clientInterceptorProtocolName)? = nil")
-      }
-      self.println(") {")
-      self.withIndentation {
-        println("self.channel = channel")
-        println("self._defaultCallOptions = defaultCallOptions")
-        println("self._interceptors = interceptors")
-      }
-      self.println("}")
-    }
-    println("}")
-  }
-
   private func printStructBackedServiceClientImplementation() {
     println("\(access) struct \(clientStructName): \(clientProtocolName) {")
     self.withIndentation {
-      println("\(access) var channel: GRPCChannel")
-      println("\(access) var defaultCallOptions: CallOptions")
-      println("\(access) var interceptors: \(clientInterceptorProtocolName)?")
-      println()
-      println("/// Creates a client for the \(servicePath) service.")
-      println("///")
-      self.printParameters()
-      println("///   - channel: `GRPCChannel` to the service host.")
-      println(
-        "///   - defaultCallOptions: Options to use for each service call if the user doesn't provide them."
-      )
-      println("///   - interceptors: A factory providing interceptors for each RPC.")
-      println("\(access) init(")
-      self.withIndentation {
-        println("channel: GRPCChannel,")
-        println("defaultCallOptions: CallOptions = CallOptions(),")
-        println("interceptors: \(clientInterceptorProtocolName)? = nil")
-      }
-      self.println(") {")
-      self.withIndentation {
-        println("self.channel = channel")
-        println("self.defaultCallOptions = defaultCallOptions")
-        println("self.interceptors = interceptors")
-      }
-      self.println("}")
+      println("\(access) init() {}")
     }
     println("}")
   }
@@ -296,22 +177,17 @@ extension Generator {
     self.println("///")
     self.printParameters()
     self.printRequestParameter()
-    self.printCallOptionsParameter()
-    self.println("/// - Returns: A `UnaryCall` with futures for the metadata, status and response.")
+    self.println("/// - Returns: A `GRPCCallData`")
     self.printFunction(
       name: self.methodFunctionName,
       arguments: self.methodArguments,
       returnType: self.methodReturnType,
       access: self.access
     ) {
-      self.println("return self.makeUnaryCall(")
+      self.println("return GRPCCallData(")
       self.withIndentation {
         self.println("path: \(self.methodPathUsingClientMetadata),")
-        self.println("request: request,")
-        self.println("callOptions: callOptions ?? self.defaultCallOptions,")
-        self.println(
-          "interceptors: self.interceptors?.\(self.methodInterceptorFactoryName)() ?? []"
-        )
+        self.println("request: request")
       }
       self.println(")")
     }
@@ -587,8 +463,7 @@ extension Generator {
     switch self.streamType {
     case .unary:
       return [
-        "_ request: \(self.methodInputName)",
-        "callOptions: CallOptions? = nil",
+        "_ request: \(self.methodInputName)"
       ]
     case .serverStreaming:
       return [
@@ -628,7 +503,7 @@ extension Generator {
   private var methodReturnType: String {
     switch self.streamType {
     case .unary:
-      return "UnaryCall<\(self.methodInputName), \(self.methodOutputName)>"
+      return "GRPCCallData<\(self.methodInputName), \(self.methodOutputName)>"
 
     case .serverStreaming:
       return "ServerStreamingCall<\(self.methodInputName), \(self.methodOutputName)>"

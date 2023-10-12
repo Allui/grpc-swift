@@ -121,10 +121,7 @@ class Generator {
     )
 
     let moduleNames = [
-      self.options.gRPCModuleName,
-      "NIO",
-      "NIOConcurrencyHelpers",
-      self.options.swiftProtobufModuleName,
+      self.options.swiftProtobufModuleName
     ]
 
     for moduleName in (moduleNames + self.options.extraModuleImports).sorted() {
@@ -142,14 +139,6 @@ class Generator {
     for service in self.file.services {
       self.service = service
       self.printClient()
-    }
-    self.println()
-
-    if self.options.generateServer {
-      for service in self.file.services {
-        self.service = service
-        printServer()
-      }
     }
   }
 
