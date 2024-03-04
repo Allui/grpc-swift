@@ -61,6 +61,7 @@ enum FileNaming: String {
   case FullPath
   case PathToUnderscores
   case DropPath
+  case Package
 }
 
 func outputFileName(
@@ -80,6 +81,8 @@ func outputFileName(
     return dirWithUnderscores + pathParts.base + ext
   case .DropPath:
     return pathParts.base + ext
+  case .Package:
+      return fileDescriptor.package + "/" + pathParts.base + ext
   }
 }
 
